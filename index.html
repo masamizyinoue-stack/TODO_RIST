@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TaskBoard Vr0.9</title>
+<title>TaskBoard Vr0.10</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -146,15 +146,18 @@ kbd{display:inline-block;background:var(--bg3);border:1px solid var(--border);bo
 .btn-cancel{background:transparent;color:var(--text2);border:1px solid var(--border);}
 .btn-cancel:hover{border-color:var(--text);color:var(--text);}
 
-/* 一括バー */
-.bulk-bar{display:none;align-items:center;gap:7px;padding:5px 10px;background:var(--bg3);border:1px solid var(--accent2);border-radius:7px;margin-bottom:8px;flex-wrap:wrap;}
-.bulk-bar.show{display:flex;}
-.bulk-count{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:var(--accent);}
-.bulk-btn{padding:3px 10px;border-radius:5px;font-size:12px;font-family:'Noto Sans JP',sans-serif;font-weight:700;cursor:pointer;transition:.15s;}
-.bulk-del-btn{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:var(--red);}
-.bulk-del-btn:hover{background:rgba(239,68,68,.22);}
-.bulk-cancel-btn{background:transparent;border:1px solid var(--border);color:var(--text2);}
-.bulk-cancel-btn:hover{border-color:var(--text);}
+/* 一括バー：非表示（sel-infoに置き換え） */
+.bulk-bar{display:none!important;}
+/* 選択情報（section-label内・中央表示） */
+.sel-info{flex:1;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;color:var(--accent);}
+.sel-del{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:var(--red)!important;border-color:rgba(239,68,68,.3)!important;}
+.sel-del:hover{background:rgba(239,68,68,.22);}
+/* 完了日表示 */
+.done-at{font-size:10px;color:var(--green);padding:0 10px 4px;font-family:'Noto Sans JP',sans-serif;font-weight:700;letter-spacing:0;opacity:.85;}
+/* タテ表示 */
+body.vertical #taskList{grid-template-columns:1fr;}
+/* normalColor CSS変数 */
+.due-ok .meta-date .mdate-text{color:var(--due-normal-c,var(--text2));}
 
 /* セクションラベル */
 .section-label{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;letter-spacing:.2em;color:var(--text2);text-transform:uppercase;padding:4px 10px;display:flex;align-items:center;gap:7px;background:var(--header-bg);border-bottom:1px solid var(--border);}
@@ -193,11 +196,17 @@ kbd{display:inline-block;background:var(--bg3);border:1px solid var(--border);bo
 .task-card.dragging{opacity:.3;border-style:dashed!important;}
 .task-card.drag-over{outline:2px dashed var(--accent);outline-offset:2px;}
 @keyframes cardGlow{
-  0%,100%{outline-color:rgba(249,115,22,.85);box-shadow:0 0 10px rgba(249,115,22,.45),0 0 20px rgba(249,115,22,.2);}
-  50%{outline-color:rgba(249,115,22,1);box-shadow:0 0 20px rgba(249,115,22,.85),0 0 40px rgba(249,115,22,.45);}
+  0%,100%{
+    outline-color:var(--sel-color,var(--accent));
+    box-shadow:0 0 10px var(--sel-glow1,rgba(249,115,22,.5)),0 0 22px var(--sel-glow2,rgba(249,115,22,.22));
+  }
+  50%{
+    outline-color:var(--sel-color,var(--accent));
+    box-shadow:0 0 20px var(--sel-glow1,rgba(249,115,22,.85)),0 0 44px var(--sel-glow2,rgba(249,115,22,.45));
+  }
 }
 .task-card.card-selected{
-  outline:6px solid var(--accent);
+  outline:7px solid var(--sel-color,var(--accent));
   outline-offset:-4px;
   animation:cardGlow 1.5s ease-in-out infinite;
 }
@@ -353,7 +362,7 @@ body.compact .fb{padding:3px 8px;font-size:11px;}
   <div class="header-row1">
     <div class="logo-block">
       <div class="logo-icon">TB</div>
-      <div><div class="logo-text">Task<span>Board</span></div><div class="logo-sub">Vr0.9</div></div>
+      <div><div class="logo-text">Task<span>Board</span></div><div class="logo-sub">Vr0.10</div></div>
     </div>
     <button class="btn-new" id="btnNew" onclick="toggleAddPanel()"><span style="font-size:16px;line-height:1;">＋</span>タスク追加</button>
     <div class="search-wrap">
@@ -395,6 +404,7 @@ body.compact .fb{padding:3px 8px;font-size:11px;}
   </div>
   <div class="header-compact-bar">
     <button class="btn-compact active" id="btnCompact" onclick="toggleCompact()">☰ コンパクト</button>
+    <button class="btn-compact" id="btnVertical" onclick="toggleVertical()">☰ タテ表示</button>
     <span class="kbd-hint"><kbd>N</kbd>追加 <kbd>F</kbd>検索 <kbd>C</kbd>切替 <kbd>?</kbd>ヘルプ <kbd>↑↓</kbd>選択 <kbd>1-4</kbd>タブ</span>
   </div>
 </header>
@@ -414,16 +424,21 @@ body.compact .fb{padding:3px 8px;font-size:11px;}
           <textarea id="txtTask" class="task-input" placeholder="タスクを入力..." oninput="autoH(this);_isDirtyEdit=true;"></textarea>
         </div>
       </div>
-      <!-- 日付（タスク内容の直下） -->
+      <!-- 日付（タスク内容の直下）iOS/iPad対応 -->
       <div class="form-row">
         <div style="flex:0 0 auto;min-width:220px;">
           <div class="field-label">📅 日付</div>
           <div class="date-area-row">
             <span id="dueDateDisplay" class="date-shown empty">日付未設定</span>
-            <button type="button" class="cal-icon-btn" onclick="openCalPicker()" title="カレンダーで入力">📅</button>
+            <!-- iOS/iPad対応：透明な date input をボタン上に重ねる -->
+            <div style="position:relative;display:inline-flex;align-items:center;">
+              <button type="button" class="cal-icon-btn" title="カレンダーで入力">📅</button>
+              <input type="date" id="txtDue"
+                style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:16px;border:none;padding:0;margin:0;background:transparent;"
+                onchange="updateDueDateDisplay(false);_isDirtyEdit=true;">
+            </div>
             <button type="button" class="cal-clear-btn" id="calClearBtn" onclick="clearDue()" style="display:none;">✕</button>
           </div>
-          <input type="date" id="txtDue" style="position:absolute;visibility:hidden;width:0;height:0;" onchange="updateDueDateDisplay(false);_isDirtyEdit=true;">
         </div>
       </div>
       <!-- ラベル①② -->
@@ -463,6 +478,12 @@ body.compact .fb{padding:3px 8px;font-size:11px;}
 
   <div class="section-label" id="sectionLabel">
     <span>TASKS</span><span class="task-count" id="taskCount">0</span>
+    <!-- 選択中件数・削除（中央・カード位置ずらさない） -->
+    <span id="selInfo" class="sel-info" style="display:none;">
+      <span id="selCount"></span>
+      <button class="sel-btn sel-del" onclick="bulkDelete()">🗑 削除</button>
+      <button class="sel-btn" onclick="deselectAll()">✕ 解除</button>
+    </span>
     <div class="sel-btns">
       <button class="sel-btn" onclick="selectAll()">全選択</button>
       <button class="sel-btn" onclick="deselectAll()">全解除</button>
@@ -494,6 +515,7 @@ body.compact .fb{padding:3px 8px;font-size:11px;}
     <div class="cfg-sec">
       <div class="cfg-title">期限カラー（カード枠色）</div>
       <div class="cfg-row"><label>警告（<input type="number" id="cfgWarnDays" min="0" max="60" value="3" style="width:36px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1px 4px;font-size:12px;color:var(--text);outline:none;">日前から）</label></div>
+      <div class="cfg-row"><label>通常色（余裕あり）</label><div class="cfg-swatches" id="swatchNormal"></div></div>
       <div class="cfg-row"><label>警告色</label><div class="cfg-swatches" id="swatchWarn"></div></div>
       <div class="cfg-row"><label>当日色</label><div class="cfg-swatches" id="swatchToday"></div></div>
       <div class="cfg-row"><label>超過色</label><div class="cfg-swatches" id="swatchOver"></div></div>
@@ -568,29 +590,32 @@ body.compact .fb{padding:3px 8px;font-size:11px;}
 
 <script>
 /* ════ キー定数 ════ */
-const SK  ='tb_tasks_v9'; const STK='tb_trash_v9'; const CFGK='tb_cfg_v9';
-const LCK ='tb_label_colors_v9'; const SOK='tb_sort_v9';
-const FOA ='tb_foa_v9'; const FOB='tb_fob_v9';
-const THK ='tb_theme';  const CPK='tb_compact_v9';
+const SK  ='tb_tasks_v10'; const STK='tb_trash_v10'; const CFGK='tb_cfg_v10';
+const LCK ='tb_label_colors_v10'; const SOK='tb_sort_v10';
+const FOA ='tb_foa_v10'; const FOB='tb_fob_v10';
+const THK ='tb_theme';  const CPK='tb_compact_v10';
 const CFG_PAL=['#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#14b8a6','#3b82f6','#8b5cf6','#ec4899','#6b7280','#a16207'];
 const LABEL_PAL=['#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c','#3498db','#9b59b6','#e91e63','#00bcd4','#8bc34a','#ff5722','#607d8b','#795548','#ff9800','#03a9f4'];
 const DAYS=['日','月','火','水','木','金','土'];
+/* 16進カラー→rgba変換 */
+function hex2rgba(h,a){ if(!h||!h.startsWith('#'))return `rgba(120,120,120,${a})`; const v=parseInt(h.replace('#',''),16); return `rgba(${(v>>16)&255},${(v>>8)&255},${v&255},${a})`; }
 
 /* ════ 移行ロード ════ */
 function ml(key,fbs){ const d=localStorage.getItem(key); if(d){try{const p=JSON.parse(d);if(p!=null)return p;}catch(e){}} for(const k of fbs){const r=localStorage.getItem(k);if(!r)continue;try{const p=JSON.parse(r);if(p!=null){localStorage.setItem(key,r);return p;}}catch(e){}} return null; }
 
 /* ════ 状態 ════ */
-let tasks       = ml(SK,  ['tb_tasks_v8','tb_tasks_v7','tb_tasks_v6','tb_tasks_v5']) || [];
-let trash       = ml(STK, ['tb_trash_v8','tb_trash_v7','tb_trash_v6']) || [];
-let labelColors = ml(LCK, ['tb_label_colors_v8','tb_label_colors_v7','tb_label_colors_v6']) || {};
-let cfg         = Object.assign({warnDays:3,warnColor:'#f59e0b',todayColor:'#f97316',overColor:'#ef4444'}, ml(CFGK,['tb_cfg_v8','tb_cfg_v7','tb_cfg_v6'])||{});
-let filterOrderA= ml(FOA, ['tb_foa_v8','tb_foa_v7']) || [];
-let filterOrderB= ml(FOB, ['tb_fob_v8','tb_fob_v7']) || [];
+let tasks       = ml(SK,  ['tb_tasks_v9','tb_tasks_v8','tb_tasks_v7','tb_tasks_v6']) || [];
+let trash       = ml(STK, ['tb_trash_v9','tb_trash_v8','tb_trash_v7']) || [];
+let labelColors = ml(LCK, ['tb_label_colors_v9','tb_label_colors_v8','tb_label_colors_v7']) || {};
+let cfg         = Object.assign({warnDays:3,warnColor:'#f59e0b',todayColor:'#f97316',overColor:'#ef4444',normalColor:'#3b82f6'}, ml(CFGK,['tb_cfg_v9','tb_cfg_v8','tb_cfg_v7'])||{});
+let filterOrderA= ml(FOA, ['tb_foa_v9','tb_foa_v8']) || [];
+let filterOrderB= ml(FOB, ['tb_fob_v9','tb_fob_v8']) || [];
 let curStatus   = 'todo';
 let curFA='ALL', curFB='ALL';
 let currentSort = localStorage.getItem(SOK)||'manual';
 let isCompact   = localStorage.getItem(CPK)!=='false';
-let selectedIds = new Set(); // 統合選択セット（カード選択・一括操作共用）
+let isVertical  = localStorage.getItem('tb_vert_v10')==='true';
+let selectedIds = new Set();
 let _isDirtyEdit=false, _editSnapshot=null;
 const _cTimers={};
 let _summaryOpen=false;
@@ -605,19 +630,22 @@ function applyTheme(t){ document.body.setAttribute('data-theme',t); document.que
 function setTheme(t){ applyTheme(t); }
 (function(){ if(isCompact){ document.body.classList.add('compact'); document.getElementById('btnCompact').classList.add('active'); } })();
 function toggleCompact(){ isCompact=!isCompact; document.body.classList.toggle('compact',isCompact); document.getElementById('btnCompact').classList.toggle('active',isCompact); localStorage.setItem(CPK,isCompact); }
+(function(){ if(isVertical){ document.body.classList.add('vertical'); document.getElementById('btnVertical').classList.add('active'); } })();
+function toggleVertical(){ isVertical=!isVertical; document.body.classList.toggle('vertical',isVertical); document.getElementById('btnVertical').classList.toggle('active',isVertical); localStorage.setItem('tb_vert_v10',isVertical); }
 
 /* ════ 期限カラー ════ */
 function applyDueColors(){
   document.body.style.setProperty('--due-warn-c',  cfg.warnColor);
   document.body.style.setProperty('--due-today-c', cfg.todayColor);
   document.body.style.setProperty('--due-over-c',  cfg.overColor);
+  document.body.style.setProperty('--due-normal-c', cfg.normalColor||'var(--text2)');
 }
 function getBorderColor(ds,waiting){
   if(waiting) return 'var(--waiting-c)';
   if(ds==='over')  return cfg.overColor;
   if(ds==='today') return cfg.todayColor;
   if(ds==='warn')  return cfg.warnColor;
-  return 'var(--def-border)';
+  return cfg.normalColor||'var(--def-border)';
 }
 
 /* ════ 日付ヘルパー ════ */
@@ -637,7 +665,13 @@ function daysLeft(due){
 }
 
 /* ════ カレンダー ════ */
-function openCalPicker(){ const i=document.getElementById('txtDue'); try{i.showPicker();}catch(e){i.focus();i.click();} }
+/* iOS/iPad対応：オーバーレイ方式なのでJS側は不要（フォールバック維持） */
+function openCalPicker(){
+  const i=document.getElementById('txtDue');
+  const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(isIOS){ i.click(); return; }
+  try{ i.showPicker(); }catch(e){ i.click(); }
+}
 function updateDueDateDisplay(full){
   const v=document.getElementById('txtDue').value;
   const el=document.getElementById('dueDateDisplay'),cl=document.getElementById('calClearBtn');
@@ -769,7 +803,16 @@ document.addEventListener('click',e=>{ const m=document.getElementById('labelCol
 /* ════ 選択操作 ════ */
 function selectAll(){ document.querySelectorAll('#taskList .task-card[data-id]').forEach(c=>selectedIds.add(c.dataset.id)); render(); updateBulkBar(); }
 function deselectAll(){ selectedIds.clear(); render(); updateBulkBar(); }
-function updateBulkBar(){ const b=document.getElementById('bulkBar'); if(selectedIds.size>0){b.classList.add('show');document.getElementById('bulkCount').textContent=selectedIds.size+'件選択中';}else b.classList.remove('show'); }
+function updateBulkBar(){
+  const info=document.getElementById('selInfo');
+  const cnt=document.getElementById('selCount');
+  if(selectedIds.size>0){
+    info.style.display='flex';
+    cnt.textContent=selectedIds.size+'件選択中';
+  } else {
+    info.style.display='none';
+  }
+}
 function bulkDelete(){ const n=selectedIds.size; [...selectedIds].forEach(id=>{const i=tasks.findIndex(t=>t.id===id);if(i>=0){trash.push({...tasks[i],_deletedAt:Date.now()});tasks.splice(i,1);}});selectedIds.clear();save();render();updateBulkBar();toast(`🗑 ${n}件をゴミ箱へ`,'warn'); }
 
 /* ════ ラベルspan生成 ════ */
@@ -841,6 +884,11 @@ function render(){
     if(!task.done&&!isWaiting&&ds!=='ok') cls+=' due-'+ds;
     card.className=cls; card.dataset.id=task.id; card.setAttribute('draggable','true');
     card.style.setProperty('--cbc',bc);
+    // 選択時グロー色：期限カラー設定に合わせる
+    const selC=ds==='over'?cfg.overColor:ds==='today'?cfg.todayColor:ds==='warn'?cfg.warnColor:(cfg.normalColor||cfg.accent||'#f97316');
+    card.style.setProperty('--sel-color', selC);
+    card.style.setProperty('--sel-glow1', hex2rgba(selC,.58));
+    card.style.setProperty('--sel-glow2', hex2rgba(selC,.26));
 
     /* ══ メタ行（日付・ラベル①②・アクション）CSS Grid整列 ══ */
     const meta=document.createElement('div'); meta.className='card-meta';
@@ -876,6 +924,14 @@ function render(){
     body.appendChild(txtEl);
     if(task.note){ const note=document.createElement('div'); note.className='card-note'; note.textContent=task.note; body.appendChild(note); }
     card.appendChild(body);
+
+    /* ── 完了日表示（完了済カードのみ） ── */
+    if(task.done && task.doneAt){
+      const da=document.createElement('div'); da.className='done-at';
+      const dd=new Date(task.doneAt);
+      da.textContent='✅ 完了: '+(dd.getMonth()+1)+'/'+(dd.getDate())+'('+DAYS[dd.getDay()]+')';
+      card.appendChild(da);
+    }
 
     /* ══ フッター ══ */
     const footer=document.createElement('div'); footer.className='card-footer';
@@ -933,7 +989,9 @@ function toggleDone(id){
   if(_cTimers[id]){clearTimeout(_cTimers[id]);delete _cTimers[id];delete t._completing;render();toast('↩ 完了キャンセル','info');return;}
   if(t.done){t.done=false;save();render();toast('↩ 未完了に戻しました','info');return;}
   t._completing=true;render();toast('✅ 3秒後に完了済みへ… 再クリックで取消','info');
-  _cTimers[id]=setTimeout(()=>{t.done=true;t.waiting=false;delete t._completing;delete _cTimers[id];save();render();toast('✅ 完了済みへ移動しました');},3000);
+  _cTimers[id]=setTimeout(()=>{
+    t.done=true; t.doneAt=Date.now(); // 完了日時を記録
+    t.waiting=false;delete t._completing;delete _cTimers[id];save();render();toast('✅ 完了済みへ移動しました');},3000);
 }
 
 /* ════ 確認待ち ════ */
@@ -993,7 +1051,7 @@ function emptyTrash(){if(!trash.length)return;trash=[];localStorage.setItem(STK,
 /* ════ 設定 ════ */
 function openSettings(){
   document.getElementById('cfgWarnDays').value=cfg.warnDays;
-  ['Warn','Today','Over'].forEach(k=>{
+  ['Normal','Warn','Today','Over'].forEach(k=>{
     const wrap=document.getElementById('swatch'+k);wrap.innerHTML='';
     const curC=cfg[k.toLowerCase()+'Color'];
     CFG_PAL.forEach(c=>{const sw=document.createElement('div');sw.className='cfg-swatch'+(c===curC?' sel':'');sw.style.background=c;sw.onclick=()=>{wrap.querySelectorAll('.cfg-swatch').forEach(s=>s.classList.remove('sel'));sw.classList.add('sel');cfg[k.toLowerCase()+'Color']=c;};wrap.appendChild(sw);});
